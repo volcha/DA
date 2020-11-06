@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <cstring>
 
 const int KEY_SIZE = 8;
 const int LEN = 2049;
@@ -58,7 +59,7 @@ public:
 };
 struct TTypeToSort {
     int key[KEY_SIZE];
-    char value[LEN];
+    char *value;
 };
 void RadixSort (TVector<TTypeToSort> &vector) {
     TVector<long long> count(MAX_KEY + 1);
@@ -89,9 +90,11 @@ int main() {
     std::cout.tie(nullptr);
     TVector<TTypeToSort> vector;
     TTypeToSort current;
+    current.value = nullptr;
     char mas[SIZE_OF_MAS];
-    while (std::cin >> mas >> current.value) {
-        for (int i = 0; i < KEY_SIZE; i++) {
+    char znach[LEN];
+    while (std::cin >> mas >> znach) {
+        for (int i = 0; i < KEY_SIZE; ++i) {
             int hex = 1;
             current.key[i] = 0;
             for (int j = BIT - 1; j >= 0; --j) {
@@ -104,6 +107,12 @@ int main() {
                 hex *= HEX;
             }
         }
+        char *value = new char[LEN];
+        for (int i = 0; i < LEN; ++i) {
+            value[i] = znach[i];
+        }
+        //std::memcpy(value, znach, sizeof(char)*LEN);
+        current.value = value;
         vector.Add(current);
     }
     long long size = vector.Size();
