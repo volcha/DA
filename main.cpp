@@ -1,126 +1,116 @@
 #include <iostream>
-#include <iomanip>
-#include <cstring>
+#include <string>
+#include <vector>
 
-const int KEY_SIZE = 8;
-const int LEN = 2049;
-const int SIZE_OF_MAS = 33;
-const int HEX = 16;
-const int BIT = 4;
-const char ZERO = '0';
-const char NINE = '9';
-const char A = 'a';
-const char F = 'f';
-const int MAX_KEY = 0xffff;
-
-template <typename T>
-class TVector {
-private:
-    T* data;
-    long long size;
-    long long capacity;
-public:
-    TVector() {
-        data = nullptr;
-        size = 0;
-        capacity = 0;
-    }
-    TVector(const long long newSize) {
-        size = newSize;
-        capacity = newSize;
-        data = new T[size];
-    }
-    ~TVector() {
-        delete[] data;
-    }
-    long long Size() const {
-        return size;
-    }
-    T& operator[] (const long long index) {
-        return data[index];
-    }
-    void Add(const T& elem) {
-        if (capacity == 0) {
-            capacity = 1;
-            data = new T[capacity];
-        }
-        if (size == capacity) {
-            capacity *= 2;
-            T* newData = new T[capacity];
-            for (int i = 0; i < size; ++i) {
-                newData[i] = data[i];
-            }
-            delete[] data;
-            data = newData;
-        }
-        data[size] = elem;
-        ++size;
-    }
+struct TWord {
+    std::string word;
+    long long wordNumber, lineNumber;
 };
-struct TTypeToSort {
-    int key[KEY_SIZE];
-    char *value;
-};
-void RadixSort (TVector<TTypeToSort> &vector) {
-    TVector<long long> count(MAX_KEY + 1);
-    for (int i = KEY_SIZE - 1; i >= 0; --i) {
-        long long size = vector.Size();
-        for (int j = 0; j <= MAX_KEY; ++j) {
-            count[j] = 0;
+bool operator ==(const TWord& l, const TWord& r) {
+    if (l.word != r.word) {
+        return false;
+    }
+    return true;
+}
+std::vector<long long> ZFunction(const std::vector<TWord>& pattern) {
+    long long size = pattern.size();
+    std::vector<long long> z(size, 0);
+    long long l = 0, r = 0;
+    for (long long i = 1; i < size; ++i) {
+        if (i <= r) {
+            z[i] = std::min(r-i+1, z[i-l]);
         }
-        for (long long j = 0; j < size; ++j) {
-            ++count[vector[j].key[i]];
+        while (i + z[i] < size && pattern[z[i]] == pattern[i + z[i]]) {
+            ++z[i];
         }
-        for (int j = 1; j <= MAX_KEY; ++j) {
-            count[j] += count[j - 1];
-        }
-        TVector<TTypeToSort> result(size);
-        for (long long j = size - 1; j >= 0; --j) {
-            result[count[vector[j].key[i]] - 1] = vector[j];
-            --count[vector[j].key[i]];
-        }
-        for (long long j = 0; j < size; ++j) {
-            vector[j] = result[j];
+        if (i + z[i] - 1 > r) {
+            l = i;
+            r = i + z[i] - 1;
         }
     }
+    return z;
+}
+std::vector<long long> StrongPrefixFunction(const std::vector<TWord>& pattern) {
+    std::vector<long long> z = ZFunction(pattern);
+    long long size = pattern.size();
+    std::vector<long long> sp(size, 0);
+    for (long long i = size - 1; i > 0; --i) {
+        sp[i + z[i] - 1] = z[i];
+    }
+    return sp;
+}
+std::vector<long long> KMP(const std::vector<TWord>& pattern, const std::vector<TWord>& text) {
+    std::vector<long long> sp = StrongPrefixFunction(pattern);
+    std::vector<long long> result;
+    long long tSize = text.size();
+    long long pSize = pattern.size();
+    if (pSize > tSize) {
+        return result;
+    }
+    long long i = 0;
+    while (i < tSize - pSize + 1) {
+        long long j = 0;
+        while (j < pSize && pattern[j] == text[i + j]) {
+            ++j;
+        }
+        if (j == pSize) {
+            result.push_back(i);
+        }
+        else if (j > 0) {
+            i = i + j - sp[j - 1] - 1;
+        }
+        ++i;
+    }
+    return result;
 }
 int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
     std::cout.tie(nullptr);
-    TVector<TTypeToSort> vector;
-    TTypeToSort current;
-    current.value = nullptr;
-    char mas[SIZE_OF_MAS];
-    char znach[LEN];
-    while (std::cin >> mas >> znach) {
-        for (int i = 0; i < KEY_SIZE; ++i) {
-            int hex = 1;
-            current.key[i] = 0;
-            for (int j = BIT - 1; j >= 0; --j) {
-                if ((mas[i * BIT + j] >= ZERO) && (mas[i * BIT + j] <= NINE)) {
-                    current.key[i] += (mas[i * BIT + j] - ZERO) * hex;
+    TWord read;
+    read.wordNumber = 1;
+    read.lineNumber = 0;
+    std::vector <TWord> pattern;
+    std::vector <TWord> text;
+    bool patternExist = false;
+    char c = getchar();
+    while (c > 0) {
+        if (c == '\n') {
+            if (patternExist == false) {
+                if (!read.word.empty()) {
+                    pattern.push_back(read);
+                    read.word.clear();
+                    patternExist = true;
                 }
-                if ((mas[i * BIT + j] >= A) && (mas[i * BIT + j] <= F)) {
-                    current.key[i] += (mas[i * BIT + j] - A + 10) * hex;
+            }
+            else if (!read.word.empty()) {
+                text.push_back(read);
+                read.word.clear();
+            }
+            read.wordNumber = 1;
+            ++read.lineNumber;
+        }
+        else if (c == ' ' || c == '\t') {
+            if (patternExist == false) {
+                if (!read.word.empty()) {
+                    pattern.push_back(read);
+                    read.word.clear();
+                    ++read.wordNumber;
                 }
-                hex *= HEX;
+            }
+            else if (!read.word.empty()) {
+                text.push_back(read);
+                read.word.clear();
+                ++read.wordNumber;
             }
         }
-        char *value = new char[LEN];
-        for (int i = 0; i < LEN; ++i) {
-            value[i] = znach[i];
+        else {
+            read.word += std::tolower(c);
         }
-        //std::memcpy(value, znach, sizeof(char)*LEN);
-        current.value = value;
-        vector.Add(current);
+        c = getchar();
     }
-    long long size = vector.Size();
-    RadixSort(vector);
-    for (long long i = 0; i < size; ++i) {
-        for (int j = 0; j < KEY_SIZE; ++j) {
-            std::cout << std::hex << std::setw(BIT) << std::setfill(ZERO) << vector[i].key[j];
-        }
-        std::cout << ' ' << vector[i].value << '\n';
+    std::vector<long long> result = KMP(pattern, text);
+    for (int i = 0; i < result.size(); ++i) {
+        std::cout << text[result[i]].lineNumber << ", " << text[result[i]].wordNumber << '\n';
     }
 }
